@@ -49,7 +49,12 @@
   .drop .main { font-weight: 650; }
   .drop .sub { font-size: .8rem; color: var(--faint); margin-top: .3rem; }
   .drop.haspic { padding: .8rem; }
-  .drop canvas { max-width: 100%; max-height: 22rem; display: block; margin: 0 auto; }
+  .drop canvas { max-width: 100%; max-height: 22rem; display: block; margin: 0 auto; touch-action: none; cursor: crosshair; }
+  .repick {
+    display: inline-block; font-size: .8rem; color: var(--faint);
+    cursor: pointer; margin-bottom: .6rem; text-decoration: underline dotted;
+  }
+  .repick:hover { color: var(--fg); }
 
   .row { display: flex; gap: .9rem; flex-wrap: wrap; align-items: end; margin-top: .6rem; }
   .field { display: flex; flex-direction: column; gap: .3rem; }
@@ -415,15 +420,18 @@
     cropCanvas.width = Math.max(1, Math.round(bm.width * scale));
     cropCanvas.height = Math.max(1, Math.round(bm.height * scale));
     drop.innerHTML = "";
-    var wrap = document.createElement("div");
-    wrap.appendChild(cropCanvas);
-    drop.appendChild(wrap);
-    // re-add a hidden file input so re-click works
+    // A small re-pick link — NOT a full-cover input: an invisible overlay
+    // above the canvas would swallow every pointer event and drag would die.
+    var repick = document.createElement("label");
+    repick.className = "repick";
+    repick.textContent = "\u21ba 重新选择照片 · " + bm.width + "×" + bm.height;
     var fi = document.createElement("input");
     fi.type = "file"; fi.id = "file"; fi.accept = "image/*";
-    fi.style.cssText = "position:absolute;inset:0;opacity:0;cursor:pointer";
+    fi.style.display = "none";
     fi.addEventListener("change", function () { takeFile(this.files[0]); });
-    drop.appendChild(fi);
+    repick.appendChild(fi);
+    drop.appendChild(repick);
+    drop.appendChild(cropCanvas);
     fileInput = fi;
     drawCrop();
     $("go").disabled = false;
@@ -461,31 +469,60 @@
       ctx.beginPath(); ctx.moveTo(c.x, yy); ctx.lineTo(c.x + c.w, yy); ctx.stroke();
     });
     ctx.setLineDash([]);
-    $("cropinfo").textContent = "拖动选择范围 · 白框=裁剪区 · 虚线=头部参考带(头顶/下巴)";
+    $("cropinfo").textContent = "拖白框=移动裁剪区 · 框外拖动=重新画框 · 虚线=头部参考带(头顶/下巴)";
   }
 
+  var dragMode = null; // "move" | "draw"
+  var grabOff = null;
+
   cropCanvas.addEventListener("pointerdown", function (e) {
-    dragging = true;
-    var r = cropCanvas.getBoundingClientRect();
-    dragStart = toBitmapCoords((e.clientX - r.left) * cropCanvas.width / r.width,
-                                (e.clientY - r.top) * cropCanvas.height / r.height);
-    e.preventDefault();
-  });
-  cropCanvas.addEventListener("pointermove", function (e) {
-    if (!dragging) return;
+    if (!srcBitmap || !cropRect) return;
     var r = cropCanvas.getBoundingClientRect();
     var p = toBitmapCoords((e.clientX - r.left) * cropCanvas.width / r.width,
                            (e.clientY - r.top) * cropCanvas.height / r.height);
-    // fixed-aspect drag: crop anchored at dragStart, size follows drag with aspect
-    var dx = Math.abs(p.x - dragStart.x), dy = Math.abs(p.y - dragStart.y);
-    var aspect = curSpec.px[0] / curSpec.px[1];
-    var w = Math.max(30, dx), h = w / aspect;
-    if (h > srcBitmap.height) { h = srcBitmap.height; w = h * aspect; }
-    var x = Math.min(Math.max(0, Math.min(dragStart.x, p.x)), srcBitmap.width - w);
-    var y = Math.min(Math.max(0, Math.min(dragStart.y, p.y)), srcBitmap.height - h);
-    if (w <= srcBitmap.width) { cropRect = { x: x, y: y, w: w, h: h }; drawCrop(); }
+    // inside (or near) the current frame → move it; outside → draw a new one
+    var near = 12 * (srcBitmap.width / cropCanvas.width);
+    var inFrame = p.x >= cropRect.x - near && p.x <= cropRect.x + cropRect.w + near &&
+                  p.y >= cropRect.y - near && p.y <= cropRect.y + cropRect.h + near;
+    if (inFrame) {
+      dragMode = "move";
+      grabOff = { x: p.x - cropRect.x, y: p.y - cropRect.y };
+    } else {
+      dragMode = "draw";
+      dragStart = p;
+    }
+    dragging = true;
+    // pointer capture: fast drags that leave the canvas keep working
+    if (cropCanvas.setPointerCapture) { try { cropCanvas.setPointerCapture(e.pointerId); } catch (er) {} }
+    e.preventDefault();
   });
-  window.addEventListener("pointerup", function () { if (dragging) { dragging = false; process(); } });
+  cropCanvas.addEventListener("pointermove", function (e) {
+    if (!dragging || !srcBitmap) return;
+    var r = cropCanvas.getBoundingClientRect();
+    var p = toBitmapCoords((e.clientX - r.left) * cropCanvas.width / r.width,
+                           (e.clientY - r.top) * cropCanvas.height / r.height);
+    var aspect = curSpec.px[0] / curSpec.px[1];
+    if (dragMode === "move") {
+      var x = Math.min(Math.max(0, p.x - grabOff.x), srcBitmap.width - cropRect.w);
+      var y = Math.min(Math.max(0, p.y - grabOff.y), srcBitmap.height - cropRect.h);
+      cropRect.x = x; cropRect.y = y;
+    } else {
+      var dx = Math.abs(p.x - dragStart.x), dy = Math.abs(p.y - dragStart.y);
+      var w = Math.max(30, dx), h = w / aspect;
+      if (h > srcBitmap.height) { h = srcBitmap.height; w = h * aspect; }
+      if (w <= srcBitmap.width) {
+        var x2 = Math.min(Math.max(0, Math.min(dragStart.x, p.x)), srcBitmap.width - w);
+        var y2 = Math.min(Math.max(0, Math.min(dragStart.y, p.y)), srcBitmap.height - h);
+        cropRect = { x: x2, y: y2, w: w, h: h };
+      }
+    }
+    drawCrop();
+  });
+  cropCanvas.addEventListener("pointerup", function (e) {
+    if (dragging) { dragging = false; dragMode = null; process(); }
+    if (cropCanvas.releasePointerCapture) { try { cropCanvas.releasePointerCapture(e.pointerId); } catch (er) {} }
+  });
+  // pointer capture keeps fast drags alive even when the pointer leaves the canvas
 
   // ---- 4 · the pipeline: crop → resample → bg → encode with KB target ----
   var lastBlob = null, lastQuality = null;
