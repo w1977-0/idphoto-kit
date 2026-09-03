@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>idphoto-kit — 证件照,精确到像素与 KB,全程不出你的浏览器</title>
+<meta name="description" content="免费证件照工具:精确像素规格(一寸/二寸/签证/身份证)、精确 KB 压缩、换背景色——照片不上传,无服务器,无水印,无统计。">
+<style>
+  :root {
+    color-scheme: light dark;
+    --ink: #141311; --paper: #fdfcf8; --fg: #141311; --bg: #f4f2ec;
+    --faint: rgba(20,19,17,.55); --hair: rgba(20,19,17,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f2efe8; --paper: #1b1b1f; --fg: #ece9e2; --bg: #101010; --faint: rgba(242,239,232,.55); --hair: rgba(242,239,232,.16); }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font: 16px/1.5 ui-sans-serif, system-ui, "Helvetica Neue", "PingFang SC", sans-serif;
+    background: var(--bg); color: var(--fg);
+    min-height: 100dvh; display: grid; place-items: center;
+    padding: clamp(1rem, 4vh, 3rem) 1.25rem;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { width: min(50rem, 94vw); text-align: left; }
+  .masthead { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1.4rem; }
+  .brand { font-weight: 700; letter-spacing: .28em; text-transform: uppercase; font-size: .95rem; }
+  .mast-note { font-size: .78rem; color: var(--faint); }
+  hr { border: 0; border-top: 1px solid var(--hair); margin: 1.1rem 0; }
+
+  .step { margin-top: 1.3rem; }
+  .step h2 { font-size: .72rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin-bottom: .6rem; }
+
+  select, input[type=number], input[type=text] {
+    font: inherit; color: var(--fg); background: var(--paper);
+    border: 1.5px solid var(--fg); padding: .5rem .7rem; border-radius: 0;
+    min-width: 0;
+  }
+  select { width: 100%; }
+  .specinfo { font-size: .82rem; color: var(--faint); margin-top: .4rem; font-variant-numeric: tabular-nums; }
+  .specinfo b { color: var(--fg); font-weight: 600; }
+
+  .drop {
+    margin-top: .6rem; border: 2px dashed var(--fg); background: var(--paper);
+    padding: 2.2rem 1.4rem; text-align: center; cursor: pointer; position: relative;
+  }
+  .drop.hover { outline: 3px solid var(--ink); outline-offset: -6px; }
+  .drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop .main { font-weight: 650; }
+  .drop .sub { font-size: .8rem; color: var(--faint); margin-top: .3rem; }
+  .drop.haspic { padding: .8rem; }
+  .drop canvas { max-width: 100%; max-height: 22rem; display: block; margin: 0 auto; }
+
+  .row { display: flex; gap: .9rem; flex-wrap: wrap; align-items: end; margin-top: .6rem; }
+  .field { display: flex; flex-direction: column; gap: .3rem; }
+  .field label { font-size: .74rem; color: var(--faint); letter-spacing: .06em; }
+  .field .swatches { display: flex; gap: .45rem; }
+  .swatch { width: 1.7rem; height: 1.7rem; border: 1.5px solid var(--fg); cursor: pointer; padding: 0; background: none; }
+  .swatch.sel { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button.go {
+    font: 650 .95rem/1 inherit; color: var(--bg); background: var(--fg);
+    border: 1.5px solid var(--fg); padding: .62rem 1.5rem; cursor: pointer;
+    letter-spacing: .05em;
+  }
+  button.go:disabled { opacity: .35; cursor: not-allowed; }
+
+  .result { margin-top: 1.3rem; }
+  .result .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; align-items: start; }
+  .result canvas { border: 2px solid var(--fg); max-width: 100%; background: var(--paper); }
+  .facts { font-size: .84rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+  .facts b { color: var(--fg); font-weight: 600; }
+  .facts .big { font-size: 1.05rem; color: var(--fg); font-weight: 650; }
+  .facts .warn { color: #a5541e; }
+  dl { margin-top: 1.4rem; }
+  .ok  { color: var(--fg); }
+  .err { color: #a5541e; font-weight: 600; }
+  footer { margin-top: 2rem; font-size: .72rem; color: var(--faint); display: flex; gap: 1.4rem; flex-wrap: wrap; }
+  footer a { color: inherit; }
+  @media (max-width: 40rem) { .result .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="masthead">
+    <span class="brand">idphoto-kit</span>
+    <span class="mast-note">照片不出浏览器 · 无上传 · 无水印 · 无统计</span>
+  </div>
+
+  <div class="step">
+    <h2>1 · 选规格</h2>
+    <select id="spec"></select>
+    <p class="specinfo" id="specinfo">—</p>
+  </div>
+
+  <div class="step">
+    <h2>2 · 放入照片</h2>
+    <div class="drop" id="drop">
+      <input type="file" id="file" accept="image/*">
+      <div class="main">点击选择,或把照片拖到这里</div>
+      <div class="sub">JPG / PNG / WebP — 全部在本机处理,不产生任何网络请求</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>3 · 裁剪与背景</h2>
+    <p class="specinfo" id="cropinfo">照片载入后,用鼠标在预览上拖动选择裁剪框;虚线带是头部参考区。</p>
+    <div class="row" id="bgrow" hidden>
+      <div class="field">
+        <label>背景色</label>
+        <div class="swatches" id="swatches"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <h2>4 · 输出</h2>
+    <div class="row">
+      <div class="field">
+        <label>目标大小上限 (KB, 0=不限制)</label>
+        <input type="number" id="maxkb" min="0" step="1" value="0" style="width:9rem">
+      </div>
+      <button class="go" id="go" disabled>生成照片</button>
+    </div>
+    <div class="result" id="result" hidden>
+      <hr>
+      <div class="grid">
+        <div><canvas id="out"></canvas></div>
+        <div class="facts">
+          <p class="big" id="r-size">—</p>
+          <p id="r-px">—</p>
+          <p id="r-q">—</p>
+          <p id="r-warn"></p>
+          <p style="margin-top:1rem"><button class="go" id="dl">下载 JPEG</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>像素规格以各报名系统官方像素数为准</span>
+    <a href="https://github.com/w1977-0/idphoto-kit" rel="noopener">idphoto-kit</a>
+    <a href="https://github.com/w1977-0/idphoto-kit#how-it-works" rel="noopener">how it works</a>
+  </footer>
+</main>
+<script>
+// idmath.js — idphoto-kit core math. Zero dependencies, browser + Node.
+//
+// Design rule learned from surveying registration systems: the PIXEL COUNT is
+// the first-class citizen of every spec (what upload forms actually validate),
+// while mm/dpi are display-only conversions. Several official specs do NOT
+// match the mm-to-px derivation (US visa 51mm→602px but requires 600px;
+// Chinese ID 32×26mm→378×307px but uses 358×441) — so the spec table stores
+// the official pixel numbers and derives nothing.
+
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) module.exports = factory();
+  else root.idmath = factory();
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  var MM_PER_INCH = 25.4;
+
+  // ---- unit conversions (display-only; never used to drive output size) ----
+  function mmToPx(mm, dpi) { return mm / MM_PER_INCH * (dpi || 300); }
+  function pxToMm(px, dpi) { return px / (dpi || 300) * MM_PER_INCH; }
+
+  // ---- the spec table: pixels first -----------------------------------
+  // minKB/maxKB are the common upload-form constraints (0 = unconstrained).
+  var SPECS = [
+    { id: "cn-1in",     name: "中国 一寸",   px: [295, 413], mm: [25, 35],  bg: ["#FFFFFF"], minKB: 0, maxKB: 0,  note: "报名/社保最常见" },
+    { id: "cn-2in",     name: "中国 二寸",   px: [413, 579], mm: [35, 49],  bg: ["#FFFFFF"], minKB: 0, maxKB: 0,  note: "考试报名常见" },
+    { id: "cn-s1in",    name: "中国 小一寸", px: [260, 378], mm: [22, 32],  bg: ["#FFFFFF"], minKB: 0, maxKB: 0,  note: "" },
+    { id: "cn-s2in",    name: "中国 小二寸", px: [413, 526], mm: [33, 48],  bg: ["#FFFFFF"], minKB: 0, maxKB: 0,  note: "签证/出入境常用" },
+    { id: "cn-idcard",  name: "身份证",      px: [358, 441], mm: [32, 26],  bg: ["#FFFFFF"], minKB: 0, maxKB: 0,  note: "像素与 mm 推导不同,以官方为准" },
+    { id: "cn-exitentry", name: "出入境/签证", px: [390, 567], mm: [33, 48], bg: ["#FFFFFF", "#D9E7F5"], minKB: 0, maxKB: 30, note: "白底或浅蓝底" },
+    { id: "us-visa",    name: "美国签证 DS-160", px: [600, 600], mm: [51, 51], bg: ["#FFFFFF"], minKB: 0, maxKB: 240, note: "方形,600×600 官方像素" },
+    { id: "eu-visa",    name: "欧盟/英国 签证", px: [413, 531], mm: [35, 45], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "35×45mm 标准" },
+    { id: "in-visa",    name: "印度 签证",    px: [390, 567], mm: [35, 53],  bg: ["#FFFFFF"], minKB: 10, maxKB: 300, note: "双边大小约束" },
+    { id: "cn-kaoyan",  name: "考研报名",    px: [300, 400], mm: [0, 0],    bg: ["#FFFFFF", "#D9E7F5", "#F2C6C6"], minKB: 10, maxKB: 30, note: "10-30KB 严格约束" },
+    { id: "cn-sifa",    name: "司法考试",    px: [413, 579], mm: [35, 49], bg: ["#FFFFFF", "#D9E7F5"], minKB: 0, maxKB: 0, note: "" },
+    { id: "cn-jichei",  name: "机动车驾驶证", px: [295, 413], mm: [25, 35], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "白底一寸" }
+  ];
+
+  function specById(id) {
+    for (var i = 0; i < SPECS.length; i++) if (SPECS[i].id === id) return SPECS[i];
+    return null;
+  }
+
+  // ---- crop framing ---------------------------------------------------
+  // Given a target aspect (w/h) and the source image dims, return the largest
+  // centered crop that matches the aspect. The caller can then let the user
+  // drag it. Pure math — no DOM.
+  function centeredCrop(srcW, srcH, aspectW, aspectH) {
+    var srcAspect = srcW / srcH;
+    var dstAspect = aspectW / aspectH;
+    var w, h;
+    if (srcAspect > dstAspect) { h = srcH; w = srcH * dstAspect; }
+    else { w = srcW; h = srcW / dstAspect; }
+    return {
+      x: (srcW - w) / 2,
+      y: (srcH - h) / 2,
+      w: w,
+      h: h
+    };
+  }
+
+  // Head-size guidance: most systems want the head height between 2/3 and
+  // 7/8 of frame height (Chinese ID: ~70%; US visa: 50-69% head, eyes in
+  // the 1/2-to-1/3 band). We expose a guide band per spec for the UI to draw.
+  function headGuide(specId) {
+    switch (specId) {
+      case "us-visa":  return { topMin: 0.0625, topMax: 0.25, bottomMin: 0.50, bottomMax: 0.69 };
+      case "cn-idcard": return { topMin: 0.08, topMax: 0.20, bottomMin: 0.62, bottomMax: 0.77 };
+      default:         return { topMin: 0.08, topMax: 0.22, bottomMin: 0.55, bottomMax: 0.80 };
+    }
+  }
+
+  // ---- background replacement (rule-based, pure pixel math) -----------
+  // Replace pixels whose colour is within `tolerance` of the original
+  // background colour with `target`, with a soft edge so hair survives.
+  // Works in a single pass over an RGBA buffer. Pure math — testable in Node.
+  function replaceBackground(rgba, origRgb, targetRgb, opts) {
+    opts = opts || {};
+    var tol = opts.tolerance !== undefined ? opts.tolerance : 60;   // 0..441 sqrt(3*255^2)
+    var feather = opts.feather !== undefined ? opts.feather : 25;    // soft band width
+    var or_ = origRgb[0], og = origRgb[1], ob = origRgb[2];
+    var tr = targetRgb[0], tg = targetRgb[1], tb = targetRgb[2];
+    for (var i = 0; i < rgba.length; i += 4) {
+      var r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+      var dr = r - or_, dg = g - og, db = b - ob;
+      var dist = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (dist <= tol) {
+        rgba[i] = tr; rgba[i + 1] = tg; rgba[i + 2] = tb;
+      } else if (dist <= tol + feather) {
+        // soft edge: blend toward the target proportionally
+        var t = (dist - tol) / feather; // 0..1, 0 = full replacement
+        var keep = t;
+        rgba[i] = Math.round(keep * r + (1 - keep) * tr);
+        rgba[i + 1] = Math.round(keep * g + (1 - keep) * tg);
+        rgba[i + 2] = Math.round(keep * b + (1 - keep) * tb);
+      }
+    }
+    return rgba;
+  }
+
+  // Sample the dominant corner colour of an RGBA buffer — the usual
+  // background of an ID photo. Pure math.
+  function sampleCornerColor(rgba, w, h) {
+    // average the four corners' 3x3 patches
+    var pts = [[0,0],[w-3,0],[0,h-3],[w-3,h-3]];
+    var r = 0, g = 0, b = 0, n = 0;
+    for (var p = 0; p < pts.length; p++) {
+      for (var dy = 0; dy < 3; dy++) {
+        for (var dx = 0; dx < 3; dx++) {
+          var idx = ((pts[p][1] + dy) * w + (pts[p][0] + dx)) * 4;
+          r += rgba[idx]; g += rgba[idx + 1]; b += rgba[idx + 2]; n++;
+        }
+      }
+    }
+    return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  }
+
+  // ---- JPEG size targeting (bisection over quality) -------------------
+  // `blobSizeAt(quality)` must return the byte size of the encoded JPEG at
+  // that quality (0..1). We bisect to the highest quality that fits maxKB,
+  // and verify minKB is met (a too-small file means resolution is too low —
+  // report it, we never pad bytes into a JPEG).
+  function bisectQuality(maxKB, minKB, blobSizeAt, opts) {
+    opts = opts || {};
+    var maxBytes = maxKB > 0 ? maxKB * 1024 : Infinity;
+    var minBytes = minKB > 0 ? minKB * 1024 : 0;
+    var lo = 0.05, hi = 1.0;
+    var best = null;
+    // invariant: size(lo) <= maxBytes (if not, even lowest quality fails)
+    for (var i = 0; i < 9; i++) {
+      var mid = (lo + hi) / 2;
+      var bytes = blobSizeAt(mid);
+      if (bytes <= maxBytes) { best = { quality: mid, bytes: bytes }; lo = mid; }
+      else hi = mid;
+    }
+    if (best === null) {
+      var floorBytes = blobSizeAt(lo);
+      if (floorBytes <= maxBytes) best = { quality: lo, bytes: floorBytes };
+      else return { ok: false, reason: "unreachable", quality: lo, bytes: floorBytes };
+    }
+    if (best.bytes < minBytes) {
+      return { ok: false, reason: "under-min", quality: best.quality, bytes: best.bytes };
+    }
+    return { ok: true, quality: best.quality, bytes: best.bytes };
+  }
+
+  // ---- convenience: hex/rgb parsing ------------------------------------
+  function hexToRgb(hex) {
+    hex = String(hex).replace("#", "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+  }
+  function rgbToHex(rgb) {
+    return "#" + rgb.map(function (v) {
+      var s = Math.max(0, Math.min(255, Math.round(v))).toString(16);
+      return s.length === 1 ? "0" + s : s;
+    }).join("");
+  }
+
+  return {
+    SPECS: SPECS,
+    specById: specById,
+    mmToPx: mmToPx,
+    pxToMm: pxToMm,
+    centeredCrop: centeredCrop,
+    headGuide: headGuide,
+    replaceBackground: replaceBackground,
+    sampleCornerColor: sampleCornerColor,
+    bisectQuality: bisectQuality,
+    hexToRgb: hexToRgb,
+    rgbToHex: rgbToHex
+  };
+});
+
+
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- 1 · spec picker -------------------------------------------------
+  var specSel = $("spec"), specInfo = $("specinfo");
+  var specs = idmath.SPECS;
+  specs.forEach(function (s, i) {
+    var o = document.createElement("option");
+    o.value = s.id; o.textContent = s.name + " — " + s.px[0] + "×" + s.px[1] + "px";
+    specSel.appendChild(o);
+  });
+  var custom = { id: "custom", name: "自定义", px: [295, 413], mm: [0, 0], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "填你自己的像素与 KB" };
+  var co = document.createElement("option");
+  co.value = "custom"; co.textContent = "自定义像素";
+  specSel.appendChild(co);
+
+  var curSpec = specs[0];
+  function showSpec() {
+    var id = specSel.value;
+    curSpec = id === "custom" ? custom : idmath.specById(id);
+    var kb = "";
+    if (curSpec.maxKB > 0 || curSpec.minKB > 0) {
+      kb = " · 常见大小要求 " + (curSpec.minKB > 0 ? curSpec.minKB + "KB–" : "≤") + (curSpec.maxKB > 0 ? curSpec.maxKB + "KB" : "");
+      $("maxkb").value = curSpec.maxKB > 0 ? curSpec.maxKB : 0;
+    }
+    specInfo.innerHTML = "输出 <b>" + curSpec.px[0] + "×" + curSpec.px[1] + "</b> 像素" +
+      (curSpec.mm && curSpec.mm[0] > 0 ? " (打印 " + curSpec.mm[0] + "×" + curSpec.mm[1] + "mm)" : "") + kb +
+      (curSpec.note ? " · " + curSpec.note : "");
+    renderSwatches();
+  }
+  specSel.addEventListener("change", showSpec);
+  showSpec();
+
+  function renderSwatches() {
+    var box = $("swatches");
+    box.innerHTML = "";
+    var bgs = curSpec.bg.concat(["#D9E7F5", "#F2C6C6", "#FFFFFF"]);
+    var seen = {};
+    bgs.forEach(function (hex) {
+      if (seen[hex]) return; seen[hex] = 1;
+      var b = document.createElement("button");
+      b.className = "swatch" + (hex === curBg ? " sel" : "");
+      b.style.background = hex;
+      b.title = hex;
+      b.addEventListener("click", function () { curBg = hex; renderSwatches(); process(); });
+      box.appendChild(b);
+    });
+    $("bgrow").hidden = false;
+  }
+
+  // ---- 2 · file in -----------------------------------------------------
+  var drop = $("drop"), fileInput = $("file");
+  var srcBitmap = null, fileName = "photo";
+  var curBg = "#FFFFFF";
+
+  drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("hover"); });
+  drop.addEventListener("dragleave", function () { drop.classList.remove("hover"); });
+  drop.addEventListener("drop", function (e) {
+    e.preventDefault(); drop.classList.remove("hover");
+    takeFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", function () { takeFile(this.files[0]); });
+
+  function takeFile(f) {
+    if (!f) return;
+    fileName = f.name.replace(/\.[^.]+$/, "");
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function () {
+      createImageBitmap(img).then(function (bm) {
+        srcBitmap = bm;
+        drop.classList.add("haspic");
+        drop.querySelector(".main").textContent = "";
+        drop.querySelector(".sub").textContent = f.name + " · " + bm.width + "×" + bm.height + " — 重新选择请点击";
+        initCrop();
+      });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
+  // ---- 3 · crop UI ------------------------------------------------------
+  var cropCanvas = document.createElement("canvas");
+  var ctx = cropCanvas.getContext("2d");
+  var cropRect = null, dragging = false, dragStart = null;
+
+  function initCrop() {
+    var bm = srcBitmap;
+    var aspect = curSpec.px[0] / curSpec.px[1];
+    cropRect = idmath.centeredCrop(bm.width, bm.height, curSpec.px[0], curSpec.px[1]);
+    // keep aspect on resize by construction; draw
+    var maxW = 640, maxH = 420;
+    var scale = Math.min(maxW / bm.width, maxH / bm.height, 1);
+    cropCanvas.width = Math.max(1, Math.round(bm.width * scale));
+    cropCanvas.height = Math.max(1, Math.round(bm.height * scale));
+    drop.innerHTML = "";
+    var wrap = document.createElement("div");
+    wrap.appendChild(cropCanvas);
+    drop.appendChild(wrap);
+    // re-add a hidden file input so re-click works
+    var fi = document.createElement("input");
+    fi.type = "file"; fi.id = "file"; fi.accept = "image/*";
+    fi.style.cssText = "position:absolute;inset:0;opacity:0;cursor:pointer";
+    fi.addEventListener("change", function () { takeFile(this.files[0]); });
+    drop.appendChild(fi);
+    fileInput = fi;
+    drawCrop();
+    $("go").disabled = false;
+    process();
+  }
+
+  function toCanvasCoords(rect) { // cropRect is in bitmap px; scale to canvas px
+    var s = cropCanvas.width / srcBitmap.width;
+    return { x: rect.x * s, y: rect.y * s, w: rect.w * s, h: rect.h * s };
+  }
+  function toBitmapCoords(x, y) {
+    var s = srcBitmap.width / cropCanvas.width;
+    return { x: x * s, y: y * s };
+  }
+
+  function drawCrop() {
+    ctx.drawImage(srcBitmap, 0, 0, cropCanvas.width, cropCanvas.height);
+    var c = toCanvasCoords(cropRect);
+    // dim outside
+    ctx.fillStyle = "rgba(20,19,17,.45)";
+    ctx.fillRect(0, 0, cropCanvas.width, c.y);
+    ctx.fillRect(0, c.y, c.x, c.h);
+    ctx.fillRect(c.x + c.w, c.y, cropCanvas.width - c.x - c.w, c.h);
+    ctx.fillRect(0, c.y + c.h, cropCanvas.width, cropCanvas.height - c.y - c.h);
+    // frame
+    ctx.strokeStyle = "#fdfcf8";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(c.x, c.y, c.w, c.h);
+    // head guide bands (dashed)
+    var g = idmath.headGuide(curSpec.id);
+    ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = "rgba(253,252,248,.75)";
+    ctx.lineWidth = 1.5;
+    [c.y + c.h * g.topMax, c.y + c.h * g.bottomMax].forEach(function (yy) {
+      ctx.beginPath(); ctx.moveTo(c.x, yy); ctx.lineTo(c.x + c.w, yy); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    $("cropinfo").textContent = "拖动选择范围 · 白框=裁剪区 · 虚线=头部参考带(头顶/下巴)";
+  }
+
+  cropCanvas.addEventListener("pointerdown", function (e) {
+    dragging = true;
+    var r = cropCanvas.getBoundingClientRect();
+    dragStart = toBitmapCoords((e.clientX - r.left) * cropCanvas.width / r.width,
+                                (e.clientY - r.top) * cropCanvas.height / r.height);
+    e.preventDefault();
+  });
+  cropCanvas.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var r = cropCanvas.getBoundingClientRect();
+    var p = toBitmapCoords((e.clientX - r.left) * cropCanvas.width / r.width,
+                           (e.clientY - r.top) * cropCanvas.height / r.height);
+    // fixed-aspect drag: crop anchored at dragStart, size follows drag with aspect
+    var dx = Math.abs(p.x - dragStart.x), dy = Math.abs(p.y - dragStart.y);
+    var aspect = curSpec.px[0] / curSpec.px[1];
+    var w = Math.max(30, dx), h = w / aspect;
+    if (h > srcBitmap.height) { h = srcBitmap.height; w = h * aspect; }
+    var x = Math.min(Math.max(0, Math.min(dragStart.x, p.x)), srcBitmap.width - w);
+    var y = Math.min(Math.max(0, Math.min(dragStart.y, p.y)), srcBitmap.height - h);
+    if (w <= srcBitmap.width) { cropRect = { x: x, y: y, w: w, h: h }; drawCrop(); }
+  });
+  window.addEventListener("pointerup", function () { if (dragging) { dragging = false; process(); } });
+
+  // ---- 4 · the pipeline: crop → resample → bg → encode with KB target ----
+  var lastBlob = null, lastQuality = null;
+  function process() {
+    if (!srcBitmap || !cropRect) return;
+    var W = curSpec.px[0], H = curSpec.px[1];
+    var oc = document.createElement("canvas");
+    oc.width = W; oc.height = H;
+    var octx = oc.getContext("2d");
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(srcBitmap, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, W, H);
+
+    // background replacement (rule-based)
+    var bgRgb = idmath.hexToRgb(curBg);
+    var white = [255, 255, 255];
+    var isDefaultWhite = Math.abs(bgRgb[0]-255)+Math.abs(bgRgb[1]-255)+Math.abs(bgRgb[2]-255) < 30;
+    if (!isDefaultWhite) {
+      var imgd = octx.getImageData(0, 0, W, H);
+      var corners = idmath.sampleCornerColor(imgd.data, W, H);
+      idmath.replaceBackground(imgd.data, corners, bgRgb, { tolerance: 55, feather: 28 });
+      octx.putImageData(imgd, 0, 0);
+    }
+
+    var out = $("out");
+    out.width = W; out.height = H;
+    out.getContext("2d").drawImage(oc, 0, 0);
+
+    var maxKB = parseInt($("maxkb").value, 10) || 0;
+    var minKB = curSpec.minKB || 0;
+    $("result").hidden = false;
+
+    var encode = function (q) {
+      return new Promise(function (res) {
+        oc.toBlob(function (b) { res(b ? b.size : 1); }, "image/jpeg", q);
+      });
+    };
+    var finish = function (q, size) {
+      oc.toBlob(function (b) {
+        lastBlob = b; lastQuality = q;
+        $("r-size").textContent = (size / 1024).toFixed(1) + " KB" + (maxKB > 0 ? " / 上限 " + maxKB + " KB" : "");
+        $("r-px").innerHTML = "像素 <b>" + W + "×" + H + "</b>" + (curSpec.mm && curSpec.mm[0] ? " (打印 " + curSpec.mm[0] + "×" + curSpec.mm[1] + "mm)" : "");
+        $("r-q").textContent = q ? "JPEG 质量 " + q.toFixed(3) : "";
+        $("r-warn").textContent = "";
+        $("r-warn").className = "";
+      }, "image/jpeg", q);
+    };
+
+    if (maxKB <= 0) { finish(0.92, 0); $("r-size").textContent = ""; encode(0.92).then(function (s) { finish(0.92, s); }); return; }
+
+    // bisection over quality using the real encoder
+    var lo = 0.05, hi = 1.0, best = null;
+    (function bisectRound(n) {
+      if (n <= 0) {
+        if (best) {
+          if (minKB > 0 && best.bytes < minKB * 1024) {
+            $("r-warn").textContent = "注意: 最低质量也只有 " + (best.bytes/1024).toFixed(1) + " KB,低于 " + minKB + "KB 下限(系统防糊图要求)。分辨率已固定,请换更高分辨率原图。";
+            $("r-warn").className = "warn";
+          }
+          finish(best.q, best.bytes);
+        } else {
+          encode(lo).then(function (s) {
+            $("r-warn").textContent = "无法压到 " + maxKB + "KB 以内(最小约 " + (s/1024).toFixed(0) + "KB)——该规格像素较多,建议确认系统是否真的限制此大小。";
+            $("r-warn").className = "warn";
+            finish(lo, s);
+          });
+        }
+        return;
+      }
+      encode((lo + hi) / 2).then(function (bytes) {
+        var mid = (lo + hi) / 2;
+        if (bytes <= maxKB * 1024) { best = { q: mid, bytes: bytes }; lo = mid; }
+        else hi = mid;
+        bisectRound(n - 1);
+      });
+    })(9);
+  }
+
+  $("go").addEventListener("click", process);
+  $("maxkb").addEventListener("change", process);
+  $("dl").addEventListener("click", function () {
+    if (!lastBlob) return;
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(lastBlob);
+    a.download = fileName + "-" + curSpec.px[0] + "x" + curSpec.px[1] + ".jpg";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Algorithm test suite
+        run: node --test test/idmath.test.js
+      - name: Page is a single self-contained file
+        run: |
+          grep -q 'idmath' index.html || { echo "index.html missing inlined core"; exit 1; }
+          ! grep -Eq 'src="https?://|href="https?://[^"]*\.(js|css)"' index.html || { echo "external script/style found"; exit 1; }
+          size=$(wc -c < index.html)
+          echo "index.html size: $size bytes"
+          test "$size" -lt 40000
