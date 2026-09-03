@@ -109,6 +109,28 @@
   footer { margin-top: 2rem; font-size: .72rem; color: var(--faint); display: flex; gap: 1.4rem; flex-wrap: wrap; }
   footer a { color: inherit; }
   @media (max-width: 40rem) { .result .grid { grid-template-columns: 1fr; } }
+
+  /* family bar — the house tools find each other */
+  .family {
+    margin-top: 1.2rem; padding: .75rem .9rem;
+    border-top: 1px solid var(--hair);
+    display: flex; flex-wrap: wrap; gap: .45rem 1.1rem;
+    font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+  }
+  .family a { color: var(--faint); text-decoration: none; padding-bottom: .1rem; }
+  .family a:hover { color: var(--fg); }
+  .family a.here { color: var(--fg); font-weight: 700; border-bottom: 2px solid var(--fg); }
+
+  /* house details: focus, selection, scrollbars — ink and paper everywhere */
+  :focus { outline: 2px solid var(--fg); outline-offset: 2px; }
+  button:focus, input:focus, select:focus { outline-offset: 0; }
+  ::selection { background: var(--fg); color: var(--bg); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--hair); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
 </style>
 </head>
 <body>
@@ -173,6 +195,7 @@
     <a href="https://github.com/w1977-0/idphoto-kit" rel="noopener">idphoto-kit</a>
     <a href="https://github.com/w1977-0/idphoto-kit#how-it-works" rel="noopener">how it works</a>
   </footer>
+<div class="family" id="family"></div><script>/* family nav build */(function(){var F=[["yearpulse","年度进度"],["idphoto-kit","证件照"],["signpad-free","手写签名"],["exactkb","图片压缩"],["tax-lens","个税五险"],["meetzones","会议排期"]];var h=location.pathname.split("/")[1]||"";var b=document.getElementById("family");F.forEach(function(t){var a=document.createElement("a");a.href="/"+t[0]+"/";a.textContent=t[1];if(h===t[0])a.className="here";b.appendChild(a);});})();</script>
 </main>
 <script>
 // idmath.js — idphoto-kit core math. Zero dependencies, browser + Node.
