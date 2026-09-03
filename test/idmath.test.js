@@ -29,6 +29,11 @@ test("trap specs: official pixels do NOT match mm derivation — table keeps the
   assert.deepEqual(id.px, [358, 441]);
   assert.notDeepEqual([Math.round(m.mmToPx(32,300)), Math.round(m.mmToPx(26,300))], id.px);
 
+  const jp = m.specById("jp-general");
+  assert.deepEqual(jp.px, [480, 660], "Japanese standard certificate photo 35x45mm");
+  const jpp = m.specById("jp-passport");
+  assert.deepEqual(jpp.px, [600, 600], "Japanese passport 5x5cm");
+
   const k = m.specById("cn-exitentry");
   assert.deepEqual(k.px, [390, 567]);
   assert.equal(k.maxKB, 30, "exit-entry has a 30KB cap in the wild");

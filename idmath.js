@@ -33,7 +33,9 @@
     { id: "in-visa",    name: "印度 签证",    px: [390, 567], mm: [35, 53],  bg: ["#FFFFFF"], minKB: 10, maxKB: 300, note: "双边大小约束" },
     { id: "cn-kaoyan",  name: "考研报名",    px: [300, 400], mm: [0, 0],    bg: ["#FFFFFF", "#D9E7F5", "#F2C6C6"], minKB: 10, maxKB: 30, note: "10-30KB 严格约束" },
     { id: "cn-sifa",    name: "司法考试",    px: [413, 579], mm: [35, 49], bg: ["#FFFFFF", "#D9E7F5"], minKB: 0, maxKB: 0, note: "" },
-    { id: "cn-jichei",  name: "机动车驾驶证", px: [295, 413], mm: [25, 35], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "白底一寸" }
+    { id: "cn-jichei",  name: "机动车驾驶证", px: [295, 413], mm: [25, 35], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "白底一寸" },
+    { id: "jp-general", name: "日本 証明写真", px: [480, 660], mm: [35, 45], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "35×45mm 一般証明書用" },
+    { id: "jp-passport", name: "日本 パスポート", px: [600, 600], mm: [45, 45], bg: ["#FFFFFF"], minKB: 0, maxKB: 0, note: "5×5cm(申請書貼付)" }
   ];
 
   function specById(id) {

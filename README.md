@@ -2,6 +2,10 @@
 
 **Free, private ID photo tool.** Resize any photo to the exact pixel spec and exact KB limit a registration system demands — entirely inside your browser. **No uploads, no server, no watermark, no tracking, no fees.**
 
+> **中文** — 免费证件照制作工具:一寸/二寸/签证/身份证照片,精确到像素与 KB,可换底色;照片不上传,全程浏览器本地处理,无水印无统计。在线使用:**[idphoto-kit](https://w1977-0.github.io/idphoto-kit/)**
+>
+> **日本語** — 無料の証明写真ツール:規定のピクセルとファイルサイズ(KB)に正確にリサイズ、背景色変更も可能。写真はアップロードされず、ブラウザ内だけで処理。ウォーターマークなし・無料。**[使ってみる](https://w1977-0.github.io/idphoto-kit/)**
+
 > Live at **https://w1977-0.github.io/idphoto-kit/**
 
 ## Why
@@ -32,7 +36,9 @@ node --test test/idmath.test.js
 
 ## Specs included
 
-中国一寸/二寸/小一寸/小二寸 · 身份证 · 出入境(≤30KB) · 考研报名(10–30KB) · 机动车驾驶证 · 美签 DS-160(600×600, ≤240KB) · 欧盟/英国签证(413×531) · 印度签证(10–300KB) · 自定义像素.
+中国一寸/二寸/小一寸/小二寸 · 身份证 · 出入境(≤30KB) · 考研报名(10–30KB) · 机动车驾驶证 · 美签 DS-160(600×600, ≤240KB) · 欧盟/英国签证(413×531) · 日本証明写真(35×45mm, 480×660) · 印度签证(10–300KB) · 自定义像素.
+
+Custom keywords for search: 证件照制作 · 免费证件照 · 签证照片尺寸 · ID photo maker · passport photo tool · 証明写真 作り方 · パスポート写真 サイズ.
 
 ## License
 
