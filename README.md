@@ -8,6 +8,9 @@
 
 > Live at **https://w1977-0.github.io/idphoto-kit/**
 
+
+[![CI](https://github.com/w1977-0/idphoto-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/w1977-0/idphoto-kit/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![No upload](https://img.shields.io/badge/privacy-no%20upload-green.svg)
+
 ## Why
 
 Registration forms are picky in ways photo editors aren't:
