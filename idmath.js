@@ -103,17 +103,23 @@
   // Sample the dominant corner colour of an RGBA buffer — the usual
   // background of an ID photo. Pure math.
   function sampleCornerColor(rgba, w, h) {
-    // average the four corners' 3x3 patches
-    var pts = [[0,0],[w-3,0],[0,h-3],[w-3,h-3]];
+    // average the four corners' 3x3 patches. The right/bottom anchors are
+    // clamped and the patch is trimmed, so an image narrower or shorter
+    // than 3 px samples what it has instead of reading past the buffer.
+    var x1 = Math.max(0, w - 3), y1 = Math.max(0, h - 3);
+    var pts = [[0,0],[x1,0],[0,y1],[x1,y1]];
     var r = 0, g = 0, b = 0, n = 0;
     for (var p = 0; p < pts.length; p++) {
       for (var dy = 0; dy < 3; dy++) {
         for (var dx = 0; dx < 3; dx++) {
-          var idx = ((pts[p][1] + dy) * w + (pts[p][0] + dx)) * 4;
+          var px = pts[p][0] + dx, py = pts[p][1] + dy;
+          if (px >= w || py >= h) continue;
+          var idx = (py * w + px) * 4;
           r += rgba[idx]; g += rgba[idx + 1]; b += rgba[idx + 2]; n++;
         }
       }
     }
+    if (n === 0) return [255, 255, 255];
     return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
   }
 
@@ -150,6 +156,10 @@
   function hexToRgb(hex) {
     hex = String(hex).replace("#", "");
     if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    // Anything that is not six hex digits is not a colour. Returning null
+    // beats returning [NaN, NaN, NaN], which silently poisons every
+    // distance comparison downstream.
+    if (!/^[0-9a-fA-F]{6}$/.test(hex)) return null;
     return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
   }
   function rgbToHex(rgb) {
