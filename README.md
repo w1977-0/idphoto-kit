@@ -34,6 +34,16 @@ photo → crop (spec aspect + head guide bands) → high-quality resample to exa
 node --test test/idmath.test.js
 ```
 
+## Browser support
+
+Any current Chrome, Edge, Firefox or Safari — desktop or mobile. Nothing is uploaded and nothing is cached: reload the page and your photo is gone. Files are decoded and encoded locally, so a very large source photo is limited by the device, not by this page.
+
+## What it does not do
+
+- **No guarantee of acceptance.** The spec table is checked against published requirements, and four of its entries deliberately keep the official pixel counts rather than the millimetre conversion — but the receiving authority is the one that decides. When a form disagrees with a preset, trust the form and use the custom pixel option.
+- **No face detection or auto-crop.** Crop position and the head guide are yours to adjust; the page does not try to find the face.
+- **No background matting.** Replacement is corner-sampled colour distance with a feathered edge — good on plain, evenly lit backdrops, not a substitute for a cutout on a busy one.
+
 ## Specs included
 
 中国一寸/二寸/小一寸/小二寸 · 身份证 · 出入境(≤30KB) · 考研报名(10–30KB) · 机动车驾驶证 · 美签 DS-160(600×600, ≤240KB) · 欧盟/英国签证(413×531) · 日本証明写真(35×45mm, 480×660) · 印度签证(10–300KB) · 自定义像素.
